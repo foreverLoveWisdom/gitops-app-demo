@@ -1,0 +1,45 @@
+name: bump-manifest
+
+on:
+  push:
+    branches: [release]
+
+jobs:
+  bump-and-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout argocd-learn-demo
+        uses: actions/checkout@v4
+        with:
+          repository: foreverLoveWisdom/argocd-learn-demo
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+
+      - name: Bump image tag
+        id: bump
+        run: |
+          # alternate between two real, pullable nginx tags each run,
+          # so the sync actually succeeds (session 3 covers the broken-tag case separately)
+          if [ $((GITHUB_RUN_NUMBER % 2)) -eq 0 ]; then
+            NEW_TAG="1.26"
+          else
+            NEW_TAG="1.25"
+          fi
+          sed -i "s|image: nginx:.*|image: nginx:${NEW_TAG}|" deployment.yaml
+          echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+          git config user.email "bump-bot@example.com"
+          git config user.name "bump-bot"
+          git checkout -b "bump-nginx-${NEW_TAG}-${GITHUB_RUN_NUMBER}"
+          git add deployment.yaml
+          git commit -m "chore: bump nginx image to ${NEW_TAG}"
+
+      - name: Push and open+merge PR
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          git push origin HEAD
+          gh pr create -R foreverLoveWisdom/argocd-learn-demo \
+            --base master \
+            --title "bump nginx image to ${{ steps.bump.outputs.new_tag }}" \
+            --body "Auto-bumped by bump-manifest workflow (stand-in for real coffret's stage-6 bot, mechanism unknown per pipeline-map.md open question B)."
+          gh pr merge -R foreverLoveWisdom/argocd-learn-demo --squash \
+            "bump-nginx-${{ steps.bump.outputs.new_tag }}-${{ github.run_number }}"
