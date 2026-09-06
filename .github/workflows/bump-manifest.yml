@@ -17,9 +17,11 @@ jobs:
       - name: Bump image tag
         id: bump
         run: |
-          # alternate between two real, pullable nginx tags each run,
-          # so the sync actually succeeds (session 3 covers the broken-tag case separately)
-          if [ $((GITHUB_RUN_NUMBER % 2)) -eq 0 ]; then
+          # toggle between two real, pullable nginx tags based on what's ACTUALLY
+          # there right now, so this always produces a real diff to commit
+          # (session 3 covers the broken-tag/no-op case separately)
+          CURRENT_TAG=$(grep -oP 'image: nginx:\K.*' deployment.yaml)
+          if [ "$CURRENT_TAG" = "1.25" ]; then
             NEW_TAG="1.26"
           else
             NEW_TAG="1.25"
