@@ -1,5 +1,7 @@
 class StatusController < ApplicationController
   def show
+    @checked_at = Time.current
+
     raw = `kubectl get application nginx-demo -n argocd -o json 2>&1`
     @app = JSON.parse(raw)
 
