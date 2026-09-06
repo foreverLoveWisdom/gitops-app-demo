@@ -13,11 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Open or update release->master PR
+        with:
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Open or update release->master PR via git-pr-release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr create --base master --head release \
-            --title "Deploy release to master" \
-            --body "Auto-opened by auto-r2m workflow (stand-in for git-pr-release)." \
-          || echo "PR already exists, nothing to do"
+          GIT_PR_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_PR_RELEASE_BRANCH_STAGING: release
+          GIT_PR_RELEASE_BRANCH_PRODUCTION: master
+        run: bundle exec git-pr-release --squashed
