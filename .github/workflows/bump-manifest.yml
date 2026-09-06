@@ -28,7 +28,7 @@ jobs:
           # accepted deliberately, matches session 3's break/fix territory.
           SHA=$(git -C gitops-app-demo rev-parse --short HEAD)
           NEW_TAG="release-${SHA}"
-          sed -i "s|image: nginx:.*|image: nginx:${NEW_TAG}|" deployment.yaml
+          sed -i "s|image: docker.io/foreverlovewisdom/gitops-app-demo:.*|image: docker.io/foreverlovewisdom/gitops-app-demo:${NEW_TAG}|" deployment.yaml
           echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
           git config user.email "bump-bot@example.com"
           git config user.name "bump-bot"
