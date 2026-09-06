@@ -14,18 +14,20 @@ jobs:
           repository: foreverLoveWisdom/argocd-learn-demo
           token: ${{ secrets.CROSS_REPO_TOKEN }}
 
+      - name: Checkout gitops-app-demo (for SHA)
+        uses: actions/checkout@v4
+        with:
+          path: gitops-app-demo
+
       - name: Bump image tag
         id: bump
         run: |
-          # toggle between two real, pullable nginx tags based on what's ACTUALLY
-          # there right now, so this always produces a real diff to commit
-          # (session 3 covers the broken-tag/no-op case separately)
-          CURRENT_TAG=$(grep -oP 'image: nginx:\K.*' deployment.yaml)
-          if [ "$CURRENT_TAG" = "1.25" ]; then
-            NEW_TAG="1.26"
-          else
-            NEW_TAG="1.25"
-          fi
+          # real coffret shape (pipeline-map.md row 6-7): tag = release-<sha> of the
+          # commit that triggered this, not a hardcoded/toggled value. Tradeoff: this
+          # tag won't exist on Docker Hub, so nginx-demo will fail ImagePullBackOff —
+          # accepted deliberately, matches session 3's break/fix territory.
+          SHA=$(git -C gitops-app-demo rev-parse --short HEAD)
+          NEW_TAG="release-${SHA}"
           sed -i "s|image: nginx:.*|image: nginx:${NEW_TAG}|" deployment.yaml
           echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
           git config user.email "bump-bot@example.com"
