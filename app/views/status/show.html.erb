@@ -5,6 +5,7 @@
   <% health = @app.dig("status", "health", "status") %>
 
   <h1>nginx-demo</h1>
+  <p style="color:gray;font-size:0.9em">Checked at: <%= @checked_at.strftime("%Y-%m-%d %H:%M:%S %Z") %></p>
   <p>
     Sync:
     <strong style="color: <%= sync == "Synced" ? "green" : "orange" %>"><%= sync %></strong>
