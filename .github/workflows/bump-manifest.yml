@@ -5,7 +5,20 @@ on:
     branches: [release]
 
 jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push image
+        run: |
+          TAG="release-$(git rev-parse --short HEAD)"
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          docker build -t "docker.io/foreverlovewisdom/gitops-app-demo:${TAG}" .
+          docker push "docker.io/foreverlovewisdom/gitops-app-demo:${TAG}"
+
   bump-and-pr:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout argocd-learn-demo
@@ -40,6 +53,6 @@ jobs:
           gh pr create -R foreverLoveWisdom/argocd-learn-demo \
             --base master \
             --title "bump nginx image to ${{ steps.bump.outputs.new_tag }}" \
-            --body "Auto-bumped by bump-manifest workflow (Auto-bumped by the bump-manifest workflow)."
+            --body "Auto-bumped by the bump-manifest workflow."
           gh pr merge -R foreverLoveWisdom/argocd-learn-demo --squash \
             "bump-nginx-${{ steps.bump.outputs.new_tag }}-${{ github.run_number }}"
