@@ -24,4 +24,21 @@
       </tr>
     <% end %>
   </table>
+
+  <h2>Pods</h2>
+  <table border="1" cellpadding="6">
+    <tr><th>Name</th><th>Status</th><th>Image</th><th>Restarts</th></tr>
+    <% (@pods || []).each do |pod| %>
+      <% status = pod.dig("status", "phase") %>
+      <% container_status = pod.dig("status", "containerStatuses", 0) %>
+      <% waiting_reason = container_status&.dig("state", "waiting", "reason") %>
+      <% display_status = waiting_reason || status %>
+      <tr>
+        <td><%= pod.dig("metadata", "name") %></td>
+        <td style="color: <%= display_status == "Running" ? "green" : "red" %>"><%= display_status %></td>
+        <td><%= pod.dig("spec", "containers", 0, "image") %></td>
+        <td><%= container_status&.dig("restartCount") %></td>
+      </tr>
+    <% end %>
+  </table>
 <% end %>
