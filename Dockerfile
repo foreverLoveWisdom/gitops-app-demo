@@ -1,4 +1,4 @@
-FROM ruby:3.3-slim
+FROM docker.io/library/ruby:3.3-slim
 
 # sqlite3 gem needs libsqlite3, and building native gems needs a compiler
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
@@ -6,6 +6,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+ENV RAILS_ENV=production
 
 COPY Gemfile Gemfile.lock ./
 RUN bundle config set --local without 'development test' && \
