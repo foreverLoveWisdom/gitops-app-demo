@@ -1,0 +1,27 @@
+<% if @error %>
+  <pre style="color:red"><%= @error %></pre>
+<% else %>
+  <% sync = @app.dig("status", "sync", "status") %>
+  <% health = @app.dig("status", "health", "status") %>
+
+  <h1>nginx-demo</h1>
+  <p>
+    Sync:
+    <strong style="color: <%= sync == "Synced" ? "green" : "orange" %>"><%= sync %></strong>
+    &nbsp;|&nbsp;
+    Health:
+    <strong style="color: <%= health == "Healthy" ? "green" : "red" %>"><%= health %></strong>
+  </p>
+
+  <table border="1" cellpadding="6">
+    <tr><th>Kind</th><th>Name</th><th>Status</th><th>Health</th></tr>
+    <% (@app.dig("status", "resources") || []).each do |r| %>
+      <tr>
+        <td><%= r["kind"] %></td>
+        <td><%= r["name"] %></td>
+        <td><%= r["status"] %></td>
+        <td><%= r.dig("health", "status") %></td>
+      </tr>
+    <% end %>
+  </table>
+<% end %>
