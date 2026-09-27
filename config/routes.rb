@@ -17,4 +17,7 @@ Rails.application.routes.draw do
   get "/auth/google_oauth2" => "oauth_test#authorize"
   get "/auth/google_oauth2/callback" => "oauth_test#callback"
   get "/auth/failure" => "oauth_test#failure"
+
+  get "/auth/google_drive/authorize" => "oauth_popup#authorize"
+  get "/auth/google_drive/callback" => "oauth_popup#callback"
 end
