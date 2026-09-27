@@ -88,7 +88,12 @@ GEM
     debug (1.11.1)
       irb (~> 1.10)
       reline (>= 0.3.8)
+    declarative (0.0.20)
     diff-lcs (2.0.0)
+    dotenv (3.2.0)
+    dotenv-rails (3.2.0)
+      dotenv (= 3.2.0)
+      railties (>= 6.1)
     drb (2.2.3)
     erb (6.0.7)
     erubi (1.13.1)
@@ -96,6 +101,8 @@ GEM
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
+    faraday-follow_redirects (0.5.0)
+      faraday (>= 1, < 3)
     faraday-net_http (3.4.4)
       net-http (~> 0.5)
     git-pr-release (2.5.0)
@@ -105,6 +112,29 @@ GEM
       octokit
     globalid (1.4.0)
       activesupport (>= 6.1)
+    google-apis-core (1.2.5)
+      addressable (~> 2.9)
+      faraday (~> 2.13)
+      faraday-follow_redirects (~> 0.3)
+      googleauth (~> 1.14)
+      mini_mime (~> 1.1)
+      multi_json (~> 1.11)
+      representable (~> 3.0)
+      retriable (>= 3.1, < 5.0)
+    google-apis-drive_v3 (0.88.0)
+      google-apis-core (>= 0.15.0, < 2.a)
+    google-cloud-env (2.4.0)
+      base64 (~> 0.2)
+      faraday (>= 1.0, < 3.a)
+    google-logging-utils (0.2.0)
+    googleauth (1.17.4)
+      faraday (>= 1.0, < 3.a)
+      google-cloud-env (~> 2.2)
+      google-logging-utils (~> 0.1)
+      jwt (>= 1.4, < 4.0)
+      os (>= 0.9, < 2.0)
+      pstore (~> 0.1)
+      signet (>= 0.16, < 2.a)
     highline (3.1.2)
       reline
     i18n (1.15.2)
@@ -116,6 +146,8 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.21.2)
+    jwt (3.3.0)
+      base64
     logger (1.7.0)
     loofah (2.25.2)
       crass (~> 1.0.2)
@@ -131,6 +163,7 @@ GEM
     minitest (6.0.6)
       drb (~> 2.0)
       prism (~> 1.5)
+    multi_json (1.21.2)
     net-http (0.9.1)
       uri (>= 0.11.1)
     net-imap (0.6.6)
@@ -162,6 +195,7 @@ GEM
     octokit (10.0.0)
       faraday (>= 1, < 3)
       sawyer (~> 0.9)
+    os (1.1.4)
     pp (0.6.4)
       prettyprint
     prettyprint (0.2.0)
@@ -170,6 +204,7 @@ GEM
       actionpack (>= 7.0.0)
       activesupport (>= 7.0.0)
       rack
+    pstore (0.2.1)
     public_suffix (7.0.5)
     puma (8.0.2)
       nio4r (~> 2.0)
@@ -224,10 +259,19 @@ GEM
       tsort
     reline (0.7.0)
       io-console (~> 0.5)
+    representable (3.3.0)
+      declarative (< 0.1.0)
+      trailblazer-option (>= 0.1.1, < 0.2.0)
+      uber (< 0.2.0)
+    retriable (4.2.0)
     sawyer (0.9.3)
       addressable (>= 2.3.5)
       faraday (>= 0.17.3, < 3)
     securerandom (0.4.1)
+    signet (0.22.0)
+      addressable (~> 2.8)
+      faraday (>= 0.17.5, < 3.a)
+      jwt (>= 1.5, < 4.0)
     sqlite3 (2.9.6-aarch64-linux-gnu)
     sqlite3 (2.9.6-aarch64-linux-musl)
     sqlite3 (2.9.6-arm-linux-gnu)
@@ -238,9 +282,11 @@ GEM
     sqlite3 (2.9.6-x86_64-linux-musl)
     thor (1.5.0)
     timeout (0.6.1)
+    trailblazer-option (0.1.2)
     tsort (0.2.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
+    uber (0.1.0)
     uri (1.1.1)
     useragent (0.16.11)
     websocket-driver (0.8.2)
@@ -262,7 +308,10 @@ PLATFORMS
 
 DEPENDENCIES
   debug
+  dotenv-rails
   git-pr-release
+  google-apis-drive_v3
+  googleauth
   propshaft
   puma (>= 5.0)
   rails (~> 8.1.3, >= 8.1.3.1)

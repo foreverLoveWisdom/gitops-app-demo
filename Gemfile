@@ -19,4 +19,8 @@ end
 
 group :development do
   gem "git-pr-release"
+  gem "dotenv-rails"
 end
+
+gem "googleauth"
+gem "google-apis-drive_v3"

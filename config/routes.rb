@@ -13,4 +13,8 @@ Rails.application.routes.draw do
   # root "posts#index"
 
   get "status" => "status#show"
+
+  get "/auth/google_oauth2" => "oauth_test#authorize"
+  get "/auth/google_oauth2/callback" => "oauth_test#callback"
+  get "/auth/failure" => "oauth_test#failure"
 end
