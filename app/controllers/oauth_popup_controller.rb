@@ -1,7 +1,7 @@
 class OauthPopupController < ApplicationController
   # Must match the redirect URI registered in the Google console exactly.
-  REDIRECT_URI = 'http://localhost:3000/auth/google_drive/callback'
-  FE_LANDING_URI = 'http://localhost:3001/oauth-landing'
+  REDIRECT_URI = 'http://localhost:3000/auth/google_drive/callback'.freeze
+  FE_LANDING_URI = 'http://localhost:3001/oauth-landing'.freeze
   # The token store needs a user key. The prototype has no login, so every run shares one.
   PROTOTYPE_USER_ID = 'prototype-user'.freeze
 
