@@ -111,16 +111,32 @@ class OauthPopupTest < ActionDispatch::IntegrationTest
     assert_not_includes log, "bad-code"
   end
 
+  test "callback never logs the state" do
+    get AUTHORIZE
+    state = google_params["state"]
+    stub_exchange
+
+    log = capture_log { get CALLBACK, params: { state: state, code: "auth-code" } }
+
+    assert_not_includes log, state
+  end
+
+  test "authorize keeps a code param visible, since only the callback carries secrets" do
+    log = capture_log { get AUTHORIZE, params: { code: "visible-elsewhere" } }
+
+    assert_includes log, "visible-elsewhere"
+  end
+
   private
 
   def capture_log
     io = StringIO.new
-    original = OauthPopupController.logger
-    OauthPopupController.logger = ActiveSupport::Logger.new(io)
+    original = ActionController::Base.logger
+    ActionController::Base.logger = ActiveSupport::Logger.new(io)
     yield
     io.string
   ensure
-    OauthPopupController.logger = original
+    ActionController::Base.logger = original
   end
 
   # Replaces the network call to Google's token endpoint, the only boundary the callback crosses.
