@@ -83,7 +83,13 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
     assert_refused("access_denied") { finish(state: issued[:state], code: nil, error: "access_denied") }
   end
 
-  test "finish replaces an error value Google never defined, so nothing attacker-written reaches the FE" do
+  test "finish passes on any plain error code Google sends, so new codes need no list update" do
+    @authorization.start
+
+    assert_refused("consent_required") { finish(state: issued[:state], code: nil, error: "consent_required") }
+  end
+
+  test "finish replaces an error value that is not a plain code word, so nothing attacker-written reaches the FE" do
     @authorization.start
 
     assert_refused("invalid_request") { finish(state: issued[:state], code: nil, error: "<script>x</script>") }

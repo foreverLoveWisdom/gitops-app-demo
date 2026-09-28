@@ -2,12 +2,9 @@
 class GoogleDriveAuthorization
   # State and verifier live and die together, so they share one session entry.
   ATTEMPT_KEY = 'google_drive.attempt'.freeze
-  # Anyone can call the callback URL, so an unknown error value must never reach the FE.
-  # Only the authorization error codes of RFC 6749 section 4.1.2.1 pass through.
-  AUTHORIZATION_ERROR_CODES = %w[
-    invalid_request unauthorized_client access_denied unsupported_response_type
-    invalid_scope server_error temporarily_unavailable
-  ].freeze
+  # Anyone can call the callback URL, so an error value must be checked before it reaches the FE.
+  # Google's codes (RFC 6749 section 4.1.2.1) are short snake_case words; anything else is replaced.
+  ERROR_CODE_SHAPE = /\A[a-z_]{1,50}\z/
 
   # Raised when a callback must be refused. The message is safe to show the FE.
   class Refused < StandardError
@@ -60,9 +57,11 @@ class GoogleDriveAuthorization
   def verify_callback!(attempt, state:, code:, error:)
     raise Refused, 'state_mismatch' unless state_matches?(attempt, state)
     # A denial carries an error and no code, so read the error first.
-    raise Refused, (AUTHORIZATION_ERROR_CODES.include?(error) ? error : 'invalid_request') if error.present?
+    raise Refused, (plain_code?(error) ? error : 'invalid_request') if error.present?
     raise Refused, 'invalid_request' if code.blank?
   end
+
+  def plain_code?(value) = value.is_a?(String) && value.match?(ERROR_CODE_SHAPE)
 
   def state_matches?(attempt, sent)
     return false unless attempt && sent.is_a?(String)
