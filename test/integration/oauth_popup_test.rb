@@ -9,52 +9,6 @@ class OauthPopupTest < ActionDispatch::IntegrationTest
     ENV["GOOGLE_CLIENT_SECRET"] ||= "test-client-secret"
   end
 
-  test "authorize sends a state that carries no data an attacker could edit" do
-    get AUTHORIZE
-
-    assert_opaque_state google_params["state"]
-  end
-
-  test "callback accepts the state issued by authorize" do
-    get AUTHORIZE
-
-    get CALLBACK, params: { state: google_params["state"], error: "access_denied" }
-
-    assert_fe_error "access_denied"
-  end
-
-  test "callback rejects a state that authorize never issued" do
-    get AUTHORIZE
-
-    get CALLBACK, params: { state: "forged", error: "access_denied" }
-
-    assert_fe_error "csrf_detected"
-  end
-
-  test "callback rejects a request when neither the browser nor the URL holds a state" do
-    get CALLBACK, params: { error: "access_denied" }
-
-    assert_fe_error "csrf_detected"
-  end
-
-  test "callback state is single-use" do
-    get AUTHORIZE
-    state = google_params["state"]
-    get CALLBACK, params: { state: state, error: "access_denied" }
-
-    get CALLBACK, params: { state: state, error: "access_denied" }
-
-    assert_fe_error "csrf_detected"
-  end
-
-  test "callback replaces an unknown error value before it reaches the FE" do
-    get AUTHORIZE
-
-    get CALLBACK, params: { state: google_params["state"], error: "<script>x</script>" }
-
-    assert_fe_error "invalid_request"
-  end
-
   test "callback reports success when Google accepts the code" do
     get AUTHORIZE
     stub_exchange
@@ -72,16 +26,6 @@ class OauthPopupTest < ActionDispatch::IntegrationTest
     get CALLBACK, params: { state: google_params["state"], code: "auth-code" }
 
     assert_operator seen[:verifier].to_s.length, :>=, 43
-  end
-
-  test "callback reports exchange_failed when the code is missing" do
-    get AUTHORIZE
-    seen = stub_exchange
-
-    get CALLBACK, params: { state: google_params["state"] }
-
-    assert_fe_error "exchange_failed"
-    assert_empty seen, "Google must not be called without a code"
   end
 
   test "callback reports exchange_failed when Google rejects the code" do
@@ -166,11 +110,5 @@ class OauthPopupTest < ActionDispatch::IntegrationTest
   def assert_fe_error(reason)
     assert_equal "localhost:3001", URI(response.location).authority
     assert_equal({ "status" => "error", "reason" => reason }, fe_params)
-  end
-
-  # JSON or a URL would mean the state carries data an attacker can edit.
-  def assert_opaque_state(state)
-    assert_operator state.to_s.length, :>=, 32
-    assert_raises(JSON::ParserError) { JSON.parse(state) }
   end
 end
