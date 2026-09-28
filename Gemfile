@@ -20,6 +20,8 @@ end
 group :development do
   gem "git-pr-release"
   gem "dotenv-rails"
+  gem "rails_semantic_logger"
+  gem "amazing_print"
 end
 
 gem "googleauth"
