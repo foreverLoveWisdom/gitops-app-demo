@@ -1,15 +1,15 @@
-require "googleauth"
+require 'googleauth'
 
 class OauthPopupController < ApplicationController
   # Must match the redirect URI registered in the Google console exactly.
-  REDIRECT_URI = "http://localhost:3000/auth/google_drive/callback"
-  FE_LANDING_URI = "http://localhost:3001/oauth-landing"
+  REDIRECT_URI = 'http://localhost:3000/auth/google_drive/callback'
+  FE_LANDING_URI = 'http://localhost:3001/oauth-landing'
   # The PKCE verifier must survive the round trip to Google, so it waits in the session.
-  CODE_VERIFIER_KEY = "google_drive.code_verifier".freeze
+  CODE_VERIFIER_KEY = 'google_drive.code_verifier'.freeze
   # RFC 6749 section 10.12: a random value bound to this browser's session, sent as state.
-  STATE_KEY = "google_drive.state".freeze
+  STATE_KEY = 'google_drive.state'.freeze
   # The token store needs a user key. The prototype has no login, so every run shares one.
-  PROTOTYPE_USER_ID = "prototype-user".freeze
+  PROTOTYPE_USER_ID = 'prototype-user'.freeze
   # Anyone can call the callback URL, so an unknown error value must never reach the FE.
   # Only the authorization error codes of RFC 6749 section 4.1.2.1 pass through.
   AUTHORIZATION_ERROR_CODES = %w[
@@ -41,15 +41,17 @@ class OauthPopupController < ApplicationController
 
   def callback
     reason = failure_reason
-    return redirect_to_fe(status: "error", reason: reason) if reason
+    return redirect_to_fe(status: 'error', reason: reason) if reason
 
-    authorizer(session[CODE_VERIFIER_KEY]).get_and_store_credentials_from_code(
-      user_id: PROTOTYPE_USER_ID, code: params[:code], base_url: REDIRECT_URI
-    )
-    # ponytail: fake email, upgrade when the FE must show the real Google account.
-    redirect_to_fe(status: "success", account_email: "test@example.com")
-  rescue Signet::AuthorizationError, Signet::ParseError
-    redirect_to_fe(status: "error", reason: "exchange_failed")
+    case exchange_code
+    in [:ok]
+      # ponytail: fake email, upgrade when the FE must show the real Google account.
+      redirect_to_fe(status: 'success', account_email: 'test@example.com')
+    in [:error, step, detail]
+      # The FE only gets a fixed reason. Google's own message stays in this log.
+      logger.warn("oauth callback failed at #{step}: #{detail}")
+      redirect_to_fe(status: 'error', reason: 'exchange_failed')
+    end
   ensure
     # A replayed callback URL must fail, so state and verifier are single-use whatever the outcome.
     session.delete(STATE_KEY)
@@ -58,14 +60,25 @@ class OauthPopupController < ApplicationController
 
   private
 
+  # Failure is a returned value naming the step, so the caller decides what to show and log.
+  # Never put the code or verifier in detail: it goes to the log.
+  def exchange_code
+    authorizer(session[CODE_VERIFIER_KEY]).get_and_store_credentials_from_code(
+      user_id: PROTOTYPE_USER_ID, code: params[:code], base_url: REDIRECT_URI
+    )
+    [:ok]
+  rescue Signet::AuthorizationError, Signet::ParseError => e
+    [:error, :token_exchange, "#{e.class}: #{e.message}"]
+  end
+
   def failure_reason
-    return "csrf_detected" unless state_valid?
+    return 'csrf_detected' unless state_valid?
 
     # A denial carries an error and no code, so read the error first.
     error = params[:error].to_s
-    return AUTHORIZATION_ERROR_CODES.include?(error) ? error : "invalid_request" unless error.empty?
+    return AUTHORIZATION_ERROR_CODES.include?(error) ? error : 'invalid_request' unless error.empty?
 
-    "exchange_failed" if params[:code].blank?
+    'exchange_failed' if params[:code].blank?
   end
 
   def state_valid?
@@ -82,7 +95,7 @@ class OauthPopupController < ApplicationController
   # include_granted_scopes=true. Scopes granted earlier therefore carry over to this grant.
   def authorizer(code_verifier)
     Google::Auth::UserAuthorizer.new(
-      Google::Auth::ClientId.new(ENV["GOOGLE_CLIENT_ID"], ENV["GOOGLE_CLIENT_SECRET"]),
+      Google::Auth::ClientId.new(ENV['GOOGLE_CLIENT_ID'], ENV['GOOGLE_CLIENT_SECRET']),
       %w[email profile],
       DiscardingTokenStore.new,
       callback_uri: REDIRECT_URI,

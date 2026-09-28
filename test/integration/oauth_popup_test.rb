@@ -93,7 +93,35 @@ class OauthPopupTest < ActionDispatch::IntegrationTest
     assert_fe_error "exchange_failed"
   end
 
+  test "callback logs the failing step and Google's reason when the exchange fails" do
+    get AUTHORIZE
+    stub_exchange(error: Signet::AuthorizationError.new("invalid_grant"))
+
+    log = capture_log { get CALLBACK, params: { state: google_params["state"], code: "bad-code" } }
+
+    assert_match(/token_exchange.*invalid_grant/, log)
+  end
+
+  test "callback never logs the authorization code" do
+    get AUTHORIZE
+    stub_exchange(error: Signet::AuthorizationError.new("invalid_grant"))
+
+    log = capture_log { get CALLBACK, params: { state: google_params["state"], code: "bad-code" } }
+
+    assert_not_includes log, "bad-code"
+  end
+
   private
+
+  def capture_log
+    io = StringIO.new
+    original = OauthPopupController.logger
+    OauthPopupController.logger = ActiveSupport::Logger.new(io)
+    yield
+    io.string
+  ensure
+    OauthPopupController.logger = original
+  end
 
   # Replaces the network call to Google's token endpoint, the only boundary the callback crosses.
   def stub_exchange(error: nil)
