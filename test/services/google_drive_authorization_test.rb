@@ -55,26 +55,26 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
   test "finish refuses a state start never issued, so a forged callback never reaches Google" do
     @authorization.start
 
-    assert_refused("csrf_detected") { finish(state: "forged") }
+    assert_refused("state_mismatch") { finish(state: "forged") }
     assert_empty @authorizer.exchanges
   end
 
   test "finish refuses a callback when no attempt was started, even if the URL has no state either" do
-    assert_refused("csrf_detected") { finish(state: nil) }
+    assert_refused("state_mismatch") { finish(state: nil) }
   end
 
   test "finish accepts the state only once, so a replayed callback fails" do
     @authorization.start
     finish(state: issued[:state])
 
-    assert_refused("csrf_detected") { finish(state: issued[:state]) }
+    assert_refused("state_mismatch") { finish(state: issued[:state]) }
   end
 
   test "finish removes the attempt even when it refuses, so a failed callback cannot be retried" do
     @authorization.start
     assert_raises(GoogleDriveAuthorization::Refused) { finish(state: "forged") }
 
-    assert_refused("csrf_detected") { finish(state: issued[:state]) }
+    assert_refused("state_mismatch") { finish(state: issued[:state]) }
   end
 
   test "finish passes a denial from Google through to the FE" do
@@ -92,7 +92,7 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
   test "finish refuses a callback with no code without calling Google" do
     @authorization.start
 
-    assert_refused("exchange_failed") { finish(state: issued[:state], code: nil) }
+    assert_refused("invalid_request") { finish(state: issued[:state], code: nil) }
     assert_empty @authorizer.exchanges
   end
 

@@ -58,10 +58,10 @@ class GoogleDriveAuthorization
   end
 
   def verify_callback!(attempt, state:, code:, error:)
-    raise Refused, 'csrf_detected' unless state_matches?(attempt, state)
+    raise Refused, 'state_mismatch' unless state_matches?(attempt, state)
     # A denial carries an error and no code, so read the error first.
     raise Refused, (AUTHORIZATION_ERROR_CODES.include?(error) ? error : 'invalid_request') if error.present?
-    raise Refused, 'exchange_failed' if code.blank?
+    raise Refused, 'invalid_request' if code.blank?
   end
 
   def state_matches?(attempt, sent)
