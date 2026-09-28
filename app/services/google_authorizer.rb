@@ -1,6 +1,6 @@
 require 'googleauth'
 
-# The only code that talks to the googleauth gem. Everything else sees plain values.
+# Keeps the googleauth API behind plain values, so a gem upgrade changes only this file.
 class GoogleAuthorizer
   # googleauth saves the access token and refresh token through a token store after each
   # code exchange, and again after each token refresh. This prototype only proves the
@@ -34,7 +34,6 @@ class GoogleAuthorizer
     gem_authorizer(code_verifier).get_authorization_url(state: state)
   end
 
-  # Never put the code or verifier in detail: it goes to the log.
   # @param code [String] authorization code from the callback
   # @param code_verifier [String] the PKCE secret behind the challenge sent earlier
   # @return [Boolean] whether Google accepted the code
@@ -45,6 +44,7 @@ class GoogleAuthorizer
     true
   rescue Signet::AuthorizationError, Signet::ParseError => e
     # The FE only learns the exchange failed. Google's own message stays in this log.
+    # The code and verifier are secrets, so they never go into log text.
     @logger.warn("google token_exchange failed: #{e.class}: #{e.message}")
     false
   end

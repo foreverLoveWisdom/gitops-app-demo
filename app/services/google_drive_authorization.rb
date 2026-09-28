@@ -1,4 +1,4 @@
-# One browser's authorization attempt: start it, then finish it exactly once.
+# One browser's authorization attempt. It can be completed only once.
 class GoogleDriveAuthorization
   # State and verifier live and die together, so they share one session entry.
   ATTEMPT_KEY = 'google_drive.attempt'.freeze
@@ -9,13 +9,14 @@ class GoogleDriveAuthorization
     invalid_scope server_error temporarily_unavailable
   ].freeze
 
-  # Raised when a callback must not reach a token exchange. reason is safe to show the FE.
+  # Raised when a callback must be refused. The message is safe to show the FE.
   class Refused < StandardError
     alias_method :reason, :message
   end
 
-  # state: RFC 6749 section 10.12, a random value bound to this browser's session.
-  # code_verifier: the PKCE secret that must survive the round trip to Google.
+  # Google returns the first value unchanged, so a callback without it did not come from an
+  # attempt this browser started (RFC 6749 section 10.12). Google keeps only a hash of the
+  # second value, so a stolen authorization code cannot be used without it (RFC 7636).
   Attempt = Data.define(:state, :code_verifier)
 
   # @param session [#[], #[]=, #delete] the browser's session
