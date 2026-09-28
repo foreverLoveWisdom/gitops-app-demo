@@ -10,15 +10,12 @@ class OauthPopupController < ApplicationController
   end
 
   def callback
-    case authorization.finish(state: params[:state], code: params[:code], error: params[:error])
-    in OauthOutcome::Approved
-      # ponytail: fake email, upgrade when the FE must show the real Google account.
-      redirect_to_fe(status: 'success', account_email: 'test@example.com')
-    in OauthOutcome::Refused => refused
-      # The FE only gets the reason. Google's own message stays in this log.
-      logger.warn("oauth callback refused: #{refused}")
-      redirect_to_fe(status: 'error', reason: refused.reason)
-    end
+    authorization.finish(state: params[:state], code: params[:code], error: params[:error])
+    # ponytail: fake email, upgrade when the FE must show the real Google account.
+    redirect_to_fe(status: 'success', account_email: 'test@example.com')
+  rescue GoogleDriveAuthorization::Refused => e
+    logger.warn("oauth callback refused: #{e.reason}")
+    redirect_to_fe(status: 'error', reason: e.reason)
   end
 
   private
@@ -28,7 +25,7 @@ class OauthPopupController < ApplicationController
       session: session,
       authorizer: GoogleAuthorizer.new(
         client_id: ENV['GOOGLE_CLIENT_ID'], client_secret: ENV['GOOGLE_CLIENT_SECRET'],
-        redirect_uri: REDIRECT_URI, user_id: PROTOTYPE_USER_ID
+        redirect_uri: REDIRECT_URI, user_id: PROTOTYPE_USER_ID, logger: logger
       )
     )
   end

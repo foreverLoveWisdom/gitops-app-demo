@@ -5,8 +5,8 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
   class FakeAuthorizer
     attr_reader :urls, :exchanges
 
-    def initialize(outcome: OauthOutcome::Approved.new)
-      @outcome = outcome
+    def initialize(accepts: true)
+      @accepts = accepts
       @urls = []
       @exchanges = []
     end
@@ -18,7 +18,7 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
 
     def exchange(code:, code_verifier:)
       @exchanges << { code: code, code_verifier: code_verifier }
-      @outcome
+      @accepts
     end
   end
 
@@ -44,13 +44,7 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
     assert_operator issued[:code_verifier].length, :>=, 43
   end
 
-  test "finish approves the callback that carries the state start issued" do
-    @authorization.start
-
-    assert_equal OauthOutcome::Approved.new, finish(state: issued[:state])
-  end
-
-  test "finish exchanges the code with the verifier start created" do
+  test "finish exchanges the code with the verifier start created, once the state matches" do
     @authorization.start
 
     finish(state: issued[:state], code: "auth-code")
@@ -61,54 +55,53 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
   test "finish refuses a state start never issued, so a forged callback never reaches Google" do
     @authorization.start
 
-    assert_refused "csrf_detected", finish(state: "forged")
+    assert_refused("csrf_detected") { finish(state: "forged") }
     assert_empty @authorizer.exchanges
   end
 
   test "finish refuses a callback when no attempt was started, even if the URL has no state either" do
-    assert_refused "csrf_detected", finish(state: nil)
+    assert_refused("csrf_detected") { finish(state: nil) }
   end
 
   test "finish accepts the state only once, so a replayed callback fails" do
     @authorization.start
     finish(state: issued[:state])
 
-    assert_refused "csrf_detected", finish(state: issued[:state])
+    assert_refused("csrf_detected") { finish(state: issued[:state]) }
   end
 
   test "finish removes the attempt even when it refuses, so a failed callback cannot be retried" do
     @authorization.start
-    finish(state: "forged")
+    assert_raises(GoogleDriveAuthorization::Refused) { finish(state: "forged") }
 
-    assert_refused "csrf_detected", finish(state: issued[:state])
+    assert_refused("csrf_detected") { finish(state: issued[:state]) }
   end
 
   test "finish passes a denial from Google through to the FE" do
     @authorization.start
 
-    assert_refused "access_denied", finish(state: issued[:state], code: nil, error: "access_denied")
+    assert_refused("access_denied") { finish(state: issued[:state], code: nil, error: "access_denied") }
   end
 
   test "finish replaces an error value Google never defined, so nothing attacker-written reaches the FE" do
     @authorization.start
 
-    assert_refused "invalid_request", finish(state: issued[:state], code: nil, error: "<script>x</script>")
+    assert_refused("invalid_request") { finish(state: issued[:state], code: nil, error: "<script>x</script>") }
   end
 
   test "finish refuses a callback with no code without calling Google" do
     @authorization.start
 
-    assert_refused "exchange_failed", finish(state: issued[:state], code: nil)
+    assert_refused("exchange_failed") { finish(state: issued[:state], code: nil) }
     assert_empty @authorizer.exchanges
   end
 
-  test "finish returns Google's refusal so the caller can log why" do
-    refusal = OauthOutcome::Refused.new(reason: "exchange_failed", step: :token_exchange, detail: "invalid_grant")
-    authorization = GoogleDriveAuthorization.new(session: @session, authorizer: FakeAuthorizer.new(outcome: refusal))
+  test "finish refuses when Google rejects the code" do
+    authorization = GoogleDriveAuthorization.new(session: @session, authorizer: FakeAuthorizer.new(accepts: false))
     authorization.start
+    state = @session.fetch(GoogleDriveAuthorization::ATTEMPT_KEY)["state"]
 
-    assert_equal refusal, authorization.finish(state: @session.fetch(GoogleDriveAuthorization::ATTEMPT_KEY)["state"],
-                                               code: "bad", error: nil)
+    assert_refused("exchange_failed") { authorization.finish(state: state, code: "bad", error: nil) }
   end
 
   private
@@ -119,8 +112,8 @@ class GoogleDriveAuthorizationTest < ActiveSupport::TestCase
     @authorization.finish(state: state, code: code, error: error)
   end
 
-  def assert_refused(reason, outcome)
-    assert_equal reason, outcome.reason
+  def assert_refused(reason, &block)
+    assert_equal reason, assert_raises(GoogleDriveAuthorization::Refused, &block).reason
   end
 
   # JSON or a URL would mean the state carries data an attacker can edit.

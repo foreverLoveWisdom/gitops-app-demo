@@ -17,11 +17,13 @@ class GoogleAuthorizer
   # @param client_secret [String] Google OAuth client secret
   # @param redirect_uri [String] callback URL, exactly as registered in the Google console
   # @param user_id [String] key the token store files credentials under
+  # @param logger [Logger] where Google's own error message goes
   # @param scopes [Array<String>] scopes to request
-  def initialize(client_id:, client_secret:, redirect_uri:, user_id:, scopes: %w[email profile])
+  def initialize(client_id:, client_secret:, redirect_uri:, user_id:, logger:, scopes: %w[email profile])
     @client_id = Google::Auth::ClientId.new(client_id, client_secret)
     @redirect_uri = redirect_uri
     @user_id = user_id
+    @logger = logger
     @scopes = scopes
   end
 
@@ -35,14 +37,16 @@ class GoogleAuthorizer
   # Never put the code or verifier in detail: it goes to the log.
   # @param code [String] authorization code from the callback
   # @param code_verifier [String] the PKCE secret behind the challenge sent earlier
-  # @return [OauthOutcome::Approved, OauthOutcome::Refused]
+  # @return [Boolean] whether Google accepted the code
   def exchange(code:, code_verifier:)
     gem_authorizer(code_verifier).get_and_store_credentials_from_code(
       user_id: @user_id, code: code, base_url: @redirect_uri
     )
-    OauthOutcome::Approved.new
+    true
   rescue Signet::AuthorizationError, Signet::ParseError => e
-    OauthOutcome::Refused.new(reason: 'exchange_failed', step: :token_exchange, detail: "#{e.class}: #{e.message}")
+    # The FE only learns the exchange failed. Google's own message stays in this log.
+    @logger.warn("google token_exchange failed: #{e.class}: #{e.message}")
+    false
   end
 
   private

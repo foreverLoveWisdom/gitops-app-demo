@@ -9,6 +9,11 @@ class GoogleDriveAuthorization
     invalid_scope server_error temporarily_unavailable
   ].freeze
 
+  # Raised when a callback must not reach a token exchange. reason is safe to show the FE.
+  class Refused < StandardError
+    alias_method :reason, :message
+  end
+
   # state: RFC 6749 section 10.12, a random value bound to this browser's session.
   # code_verifier: the PKCE secret that must survive the round trip to Google.
   Attempt = Data.define(:state, :code_verifier)
@@ -33,13 +38,14 @@ class GoogleDriveAuthorization
   # @param state [String, nil] state echoed back in the callback URL
   # @param code [String, nil] authorization code from the callback URL
   # @param error [String, nil] authorization error from the callback URL
-  # @return [OauthOutcome::Approved, OauthOutcome::Refused]
+  # @raise [Refused] when the callback is forged, replayed, denied, or Google rejects the code
+  # @return [void]
   def finish(state:, code:, error:)
     attempt = take_attempt
-    case check(attempt, state: state, code: code, error: error)
-    in OauthOutcome::Refused => refused then refused
-    in OauthOutcome::Approved then @authorizer.exchange(code: code, code_verifier: attempt.code_verifier)
-    end
+    verify_callback!(attempt, state: state, code: code, error: error)
+    return if @authorizer.exchange(code: code, code_verifier: attempt.code_verifier)
+
+    raise Refused, 'exchange_failed'
   end
 
   private
@@ -50,13 +56,11 @@ class GoogleDriveAuthorization
     stored && Attempt.new(state: stored['state'], code_verifier: stored['code_verifier'])
   end
 
-  def check(attempt, state:, code:, error:)
-    return refuse('csrf_detected') unless state_matches?(attempt, state)
+  def verify_callback!(attempt, state:, code:, error:)
+    raise Refused, 'csrf_detected' unless state_matches?(attempt, state)
     # A denial carries an error and no code, so read the error first.
-    return refuse(AUTHORIZATION_ERROR_CODES.include?(error.to_s) ? error.to_s : 'invalid_request') if error.present?
-    return refuse('exchange_failed') if code.blank?
-
-    OauthOutcome::Approved.new
+    raise Refused, (AUTHORIZATION_ERROR_CODES.include?(error) ? error : 'invalid_request') if error.present?
+    raise Refused, 'exchange_failed' if code.blank?
   end
 
   def state_matches?(attempt, sent)
@@ -64,6 +68,4 @@ class GoogleDriveAuthorization
 
     ActiveSupport::SecurityUtils.secure_compare(sent, attempt.state)
   end
-
-  def refuse(reason) = OauthOutcome::Refused.new(reason: reason)
 end
